@@ -99,9 +99,9 @@ function officeguybit_woocommerce_gateway()
             $Remark = sprintf($Remark, $DocumentID);
 
             $Order->add_order_note($Remark);
-            $Order->payment_complete();
             $Order->add_meta_data('OfficeGuyDocumentID', $DocumentID);
             $Order->add_meta_data('OfficeGuyCustomerID', $CustomerID);
+            $Order->payment_complete();
             $Order->save_meta_data();
             $Order->save();
         }

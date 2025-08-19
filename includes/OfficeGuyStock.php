@@ -30,7 +30,7 @@ class OfficeGuyStock
         $Request = array();
         $Request['Credentials'] = OfficeGuyPayment::GetCredentials($Gateway);
 
-        $Response = OfficeGuyAPI::PostRaw($Request, '/stock/stock/list/', $Gateway->get_option('environment'));
+        $Response = OfficeGuyAPI::PostRaw($Request, '/stock/stock/list/', $Gateway->get_option('environment'), false);
         if (is_wp_error($Response))
         {
             $Gateway->settings['stock_sync_freq'] = 'none';

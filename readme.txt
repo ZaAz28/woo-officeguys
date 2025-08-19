@@ -1,13 +1,13 @@
-=== WooCommerce Payment Gateway - SUMIT (formerly OfficeGuy) ===
+=== WooCommerce Payment Gateway - SUMIT ===
 Contributors: effyteva
 Tags: סליקת אשראי, אשראי, סליקה, חיוב באשראי, אופיסגיא, סאמיט, אופיס, אופיס גיא, WooCommerce, Payment, Gateway, Credit Cards, Shopping Cart, OfficeGuy, SUMIT, OfficeGuy Commerce, Israeli clearing, Extension, Subscriptions, Recurring Billing, Membership
 Requires at least: 4.6
-Tested up to: 6.2
-Stable tag: 3.1.9
+Tested up to: 6.8
+Stable tag: 3.2.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-SUMIT (formerly OfficeGuy) Israeli Payment Gateway for WooCommerce
+SUMIT Israeli Payment Gateway for WooCommerce
 
 == Description ==
 Improve your WooCommerce site sales by accepting all credit cards
@@ -51,6 +51,37 @@ function CustomItemFields($Item, $Product, $UnitPrice, $OrderItem, $Order) {
 add_filter('sumit_item_fields', 'CustomItemFields');
 
 == Changelog ===
+= 3.2.8 =
+* Fix for sending email to customer following redirect payment.
+* Updated WordPress 6.8 support.
+
+= 3.2.7 =
+* Bit payments will now respect email sending setting.
+
+= 3.2.6 =
+* Declared incompatibility with checkout blocks. Compatibility will be added in future versions.
+
+= 3.2.5 =
+* Fixed API keys validation bug.
+* Added additional order metadata fields.
+
+= 3.2.4 =
+* Updated WordPress 6.4 support.
+
+= 3.2.3 =
+* Removed OfficeGuy branding.
+
+= 3.2.2 =
+* Added aria-label for better accessibility support.
+
+= 3.2.1 =
+* Added Client IP header, preventing bots attacks.
+
+= 3.2.0 =
+* Token storage bugfix when using WooCommerce Subscriptions.
+* Updated scripts.js to use the app.sumit.co.il hostname.
+* Updated WordPress 6.3 support.
+
 = 3.1.9 =
 * sumit_item_fields bug fixes.
 * Bugfix related to multi vendors.

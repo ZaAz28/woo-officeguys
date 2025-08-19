@@ -146,7 +146,7 @@ function officeguy_woocommerce_gateway()
                         <label for="og-ccnum" class="og-label-tel">
                             <?php echo __('Credit Card number', 'officeguy') ?> <span class="required">*</span>
                         </label>
-                        <input type="tel" class="input-text og-cc-cardnumber" id="og-ccnum" name="og-ccnum" data-og="cardnumber" maxlength="20" autocomplete="off" required="required" data-og-message="<?php echo __('Card number is required.', 'officeguy') ?>" />
+                        <input type="tel" class="input-text og-cc-cardnumber" id="og-ccnum" name="og-ccnum" data-og="cardnumber" maxlength="20" autocomplete="off" required="required" data-og-message="<?php echo __('Card number is required.', 'officeguy') ?>" aria-label="<?php _e('Credit Card number', 'officeguy') ?>" />
                     </p>
                     <?php
                     if ($this->settings['citizenid'] != 'no')
@@ -159,7 +159,7 @@ function officeguy_woocommerce_gateway()
                                     <span class="required">*</span>
                                 <?php } ?>
                             </label>
-                            <input type="tel" class="input-text og-cc-citizenid" id="og-citizenid" name="og-citizenid" maxlength="20" data-og="citizenid" autocomplete="off" <?php echo $this->settings['citizenid'] == 'required' ? 'required="required" data-og-message="' . __('Israeli Citizen ID is required.', 'officeguy') . '" ' : '' ?> />
+                            <input type="tel" class="input-text og-cc-citizenid" id="og-citizenid" name="og-citizenid" maxlength="20" data-og="citizenid" autocomplete="off" aria-label="<?php _e('Israeli Citizen ID', 'officeguy') ?>" <?php echo $this->settings['citizenid'] == 'required' ? 'required="required" data-og-message="' . __('Israeli Citizen ID is required.', 'officeguy') . '" ' : '' ?> />
                         </p>
                     <?php
                     } ?>
@@ -172,7 +172,7 @@ function officeguy_woocommerce_gateway()
                             <?php echo __('Expiration date', 'officeguy') ?> <span class="required">*</span>
                         </label>
                         <span class="og-expiration">
-                            <select name="og-expmonth" id="og-expmonth" class="woocommerce-select og-cc-month" data-og="expirationmonth" required="required">
+                            <select name="og-expmonth" id="og-expmonth" class="woocommerce-select og-cc-month" data-og="expirationmonth" required="required" aria-label="<?php echo __('Expiration date', 'officeguy') . ' (' . __('Month', 'officeguy') . ')' ?>">
                                 <option value=""><?php _e('Month', 'officeguy') ?></option>
                                 <?php
                                 for ($i = 1; $i <= 12; $i++)
@@ -181,7 +181,7 @@ function officeguy_woocommerce_gateway()
                                 }
                                 ?>
                             </select>
-                            <select name="og-expyear" id="og-expyear" class="woocommerce-select og-cc-year" data-og="expirationyear" required="required" data-og-message="<?php echo __('Card expiration date is required.', 'officeguy') ?>">
+                            <select name="og-expyear" id="og-expyear" class="woocommerce-select og-cc-year" data-og="expirationyear" required="required" data-og-message="<?php echo __('Card expiration date is required.', 'officeguy') ?>" aria-label="<?php echo __('Expiration date', 'officeguy') . ' (' . __('Year', 'officeguy') . ')' ?>">
                                 <option value=""><?php _e('Year', 'officeguy') ?></option>
                                 <?php for ($i = date('y'); $i <= date('y') + 15; $i++)
                                 {
@@ -204,7 +204,7 @@ function officeguy_woocommerce_gateway()
                                     <span class="required">*</span>
                                 <?php } ?>
                             </label>
-                            <input type="tel" class="input-text og-cc-cvv" id="og-cvv" name="og-cvv" maxlength="4" data-og="cvv" autocomplete="off" <?php echo $this->settings['cvv'] == 'required' ? 'required="required" data-og-message="' . __('Card security code is required.', 'officeguy') . '" ' : '' ?> />
+                            <input type="tel" class="input-text og-cc-cvv" id="og-cvv" name="og-cvv" maxlength="4" data-og="cvv" autocomplete="off" aria-label="<?php _e('Security code (CVV)', 'officeguy') ?>" <?php echo $this->settings['cvv'] == 'required' ? 'required="required" data-og-message="' . __('Card security code is required.', 'officeguy') . '" ' : '' ?> />
                         </p>
                     <?php
                     }
@@ -339,7 +339,7 @@ function officeguy_woocommerce_gateway()
         public function process_admin_options()
         {
             parent::process_admin_options();
-
+            OfficeGuySettings::InitDefaultSettings($this);
             if (!empty($this->settings['companyid']) && !empty($this->settings['publickey']) && !empty($this->settings['privatekey']))
             {
                 $CredentialsMessage = OfficeGuyAPI::CheckCredentials($this->settings['companyid'], $this->settings['privatekey']);
@@ -376,7 +376,7 @@ function officeguy_woocommerce_gateway()
             $Request = array();
             $Request['Credentials'] = OfficeGuyPayment::GetCredentials($Gateway);
             $Request['PaymentID'] = $OGPaymentID;
-            $Response = OfficeGuyAPI::Post($Request, '/billing/payments/get/', $Gateway->settings['environment']);
+            $Response = OfficeGuyAPI::Post($Request, '/billing/payments/get/', $Gateway->settings['environment'], false);
             if ($Response == null)
                 return;
     
@@ -414,7 +414,7 @@ function officeguy_woocommerce_gateway()
             if ($this->settings['pci'] != "redirect")
             {
                 wp_enqueue_script('jquery');
-                wp_enqueue_script('officeguypayments', 'https://app.sumit.co.il/scripts/payments.js');
+                wp_enqueue_script('officeguypayments', ($this->settings['environment'] == "dev" ? "http://dev." : "https://app.") . 'sumit.co.il/scripts/payments.js');
             }
             wp_enqueue_style('officeguy-og-css', PLUGIN_DIR . 'includes/css/front.css');
             wp_enqueue_script('officeguy-front', PLUGIN_DIR . 'includes/js/officeguy.js', array('jquery'));

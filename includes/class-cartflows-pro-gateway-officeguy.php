@@ -25,9 +25,9 @@ class Cartflows_Pro_Gateway_OfficeGuy
         $Request = $this->GetOfferPaymentRequest($Order, $OrderItem, $Product);
         $IsOfficeGuySubscription = get_post_meta($Product['id'], 'OfficeGuySubscription', true) === 'yes';
         if ($IsOfficeGuySubscription)
-            $Response = OfficeGuyAPI::Post($Request, '/billing/recurring/charge/', $Gateway->settings['environment']);
+            $Response = OfficeGuyAPI::Post($Request, '/billing/recurring/charge/', $Gateway->settings['environment'], false);
         else
-            $Response = OfficeGuyAPI::Post($Request, '/billing/payments/charge/', $Gateway->settings['environment']);
+            $Response = OfficeGuyAPI::Post($Request, '/billing/payments/charge/', $Gateway->settings['environment'], false);
 
         // Check response
         if ($Response['Status'] == 0 && $Response['Data']['Payment']['ValidPayment'] == true)
@@ -38,9 +38,16 @@ class Cartflows_Pro_Gateway_OfficeGuy
             $Remark = __('SUMIT payment completed. Auth Number: %s. Last digits: %s. Payment ID: %s. Document ID: %s. Customer ID: %s.', 'officeguy');
             $Remark = sprintf($Remark, $ResponsePayment['AuthNumber'], $ResponsePaymentMethod['CreditCard_LastDigits'], $ResponsePayment['ID'], $Response['Data']['DocumentID'], $Response['Data']['CustomerID']);
             $Order->add_order_note($Remark);
-            $Order->payment_complete();
             $Order->add_meta_data('OfficeGuyDocumentID', $Response['Data']['DocumentID']);
             $Order->add_meta_data('OfficeGuyCustomerID', $Response['Data']['CustomerID']);
+            $Order->add_meta_data('OfficeGuyAuthNumber', $ResponsePayment['AuthNumber']);
+            $Order->add_meta_data('OfficeGuyTotalPaymentAmount', $ResponsePayment['Amount']);
+            $Order->add_meta_data('OfficeGuyFirstPaymentAmount', $ResponsePayment['FirstPaymentAmount']);
+            $Order->add_meta_data('OfficeGuyNonFirstPaymentAmount', $ResponsePayment['NonFirstPaymentAmount']);
+            $Order->add_meta_data('OfficeGuyLastDigits', $ResponsePaymentMethod['CreditCard_LastDigits']);
+            $Order->add_meta_data('OfficeGuyExpirationMonth', $ResponsePaymentMethod['CreditCard_ExpirationMonth']);
+            $Order->add_meta_data('OfficeGuyExpirationYear', $ResponsePaymentMethod['CreditCard_ExpirationYear']);
+            $Order->payment_complete();
             $Order->save();
 
             if ($Gateway->settings['createorderdocument'] == 'yes')

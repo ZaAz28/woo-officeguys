@@ -39,7 +39,7 @@ class OfficeGuyTokens
     public static function ProcessToken($Gateway)
     {
         $Request = OfficeGuyTokens::GetTokenRequest($Gateway);
-        $Response = OfficeGuyAPI::Post($Request, '/creditguy/gateway/transaction/', $Gateway->settings['environment']);
+        $Response = OfficeGuyAPI::Post($Request, '/creditguy/gateway/transaction/', $Gateway->settings['environment'], false);
 
         // Check response
         if ($Response['Status'] == 0 && $Response['Data']['Success'] == true)

@@ -27,6 +27,7 @@ class OfficeGuyPayment
         $Request['DraftDocument'] = $Gateway->settings['draftdocument'] != 'no' ? 'true' : 'false';
         $Request['SendDocumentByEmail'] = $Gateway->settings['emaildocument'] == 'yes' && !in_array('subscription', $ItemMethods) ? 'true' : 'false';
         $Request['UpdateCustomerByEmail'] = $Gateway->settings['emaildocument'] == 'yes' && in_array('subscription', $ItemMethods) ? 'true' : 'false';
+        $Request['UpdateCustomerOnSuccess'] = $Gateway->settings['emaildocument'] == 'yes' ? 'true' : 'false'; // BeginRedirect
         if ($Gateway->settings['emaildocument'] == 'yes') // BeginRedirect
             $Request['SendUpdateByEmailAddress'] = $Order->get_billing_email();
         $Request['DocumentDescription'] = __('Order number', 'officeguy') . ': ' . $Order->get_id() . (empty($Order->get_customer_note()) ? '' : "\r\n" . $Order->get_customer_note());
@@ -39,6 +40,8 @@ class OfficeGuyPayment
             $Request['MerchantNumber'] = $Gateway->settings['subscriptionsmerchantnumber'];
         else
             $Request['MerchantNumber'] = $Gateway->settings['merchantnumber'];
+        
+        $Token = null;
         if (!$IsSubscriptionPayment && $Gateway->settings['pci'] == 'redirect') {
             if (strpos(home_url(), '?') !== false)
                 $Request['RedirectURL'] = untrailingslashit(home_url()) . '&wc-api=WC_OfficeGuy&OG-OrderID=' . $Order->get_id();
@@ -47,7 +50,6 @@ class OfficeGuyPayment
         }
         else
         {
-            $Token = null;
             if ($IsSubscriptionPayment)
             {
                 $Subscriptions = array_merge(
@@ -106,7 +108,7 @@ class OfficeGuyPayment
                 }
             }
         }
-        return $Request;
+        return array($Request, $Token);
     }
 
     public static function ValidateOrderFields($Gateway)
@@ -189,7 +191,7 @@ class OfficeGuyPayment
             'Description' => __('Order number', 'officeguy') . ': ' . $Order->get_id() . (empty($Order->get_customer_note()) ? '' : "\r\n" . $Order->get_customer_note())
         );
         $Request['OriginalDocumentID'] = $OriginalDocumentID;
-        $Response = OfficeGuyAPI::Post($Request, '/accounting/documents/create/', $Gateway->settings['environment']);
+        $Response = OfficeGuyAPI::Post($Request, '/accounting/documents/create/', $Gateway->settings['environment'], false);
         if ($Response['Status'] == 0)
         {
             // Success
@@ -225,7 +227,7 @@ class OfficeGuyPayment
                 else
                 {
                     $Request = OfficeGuyTokens::GetTokenRequest($Gateway);
-                    $Response = OfficeGuyAPI::Post($Request, '/creditguy/gateway/transaction/', $Gateway->settings['environment']);
+                    $Response = OfficeGuyAPI::Post($Request, '/creditguy/gateway/transaction/', $Gateway->settings['environment'], !$IsWooCommerceSubscriptionPayment);
                     if ($Response['Status'] == 0 && $Response['Data']['Success'] == true)
                     {
                         $Token = OfficeGuyTokens::GetTokenFromResponse($Gateway, $Response);
@@ -299,18 +301,18 @@ class OfficeGuyPayment
         }
 
         $HasVendorInCart = OfficeGuyMultiVendor::HasVendorInCart();
-        $Request = OfficeGuyPayment::GetOrderRequest($Gateway, $Order, $ItemMethods, $PaymentsCount, $IsWooCommerceSubscriptionPayment);
+        list($Request, $Token) = OfficeGuyPayment::GetOrderRequest($Gateway, $Order, $ItemMethods, $PaymentsCount, $IsWooCommerceSubscriptionPayment);
         do_action('og_payment_request_handle', $Order, $Request);
 
         $Response = '';
         if ($HasVendorInCart)
-            $Response = OfficeGuyAPI::Post($Request, '/billing/payments/multivendorcharge/', $Gateway->settings['environment']);
+            $Response = OfficeGuyAPI::Post($Request, '/billing/payments/multivendorcharge/', $Gateway->settings['environment'], !$IsWooCommerceSubscriptionPayment);
         else if (in_array('subscription', $ItemMethods))
-            $Response = OfficeGuyAPI::Post($Request, '/billing/recurring/charge/', $Gateway->settings['environment']);
+            $Response = OfficeGuyAPI::Post($Request, '/billing/recurring/charge/', $Gateway->settings['environment'], !$IsWooCommerceSubscriptionPayment);
         else if ($Gateway->settings['pci'] == 'redirect')
-            $Response = OfficeGuyAPI::Post($Request, '/billing/payments/beginredirect/', $Gateway->settings['environment']);
+            $Response = OfficeGuyAPI::Post($Request, '/billing/payments/beginredirect/', $Gateway->settings['environment'], !$IsWooCommerceSubscriptionPayment);
         else
-            $Response = OfficeGuyAPI::Post($Request, '/billing/payments/charge/', $Gateway->settings['environment']);
+            $Response = OfficeGuyAPI::Post($Request, '/billing/payments/charge/', $Gateway->settings['environment'], !$IsWooCommerceSubscriptionPayment);
 
         if (!$IsWooCommerceSubscriptionPayment && $Gateway->settings['pci'] == 'redirect')
         {
@@ -339,9 +341,9 @@ class OfficeGuyPayment
                         $Remark = __('SUMIT payment completed. Auth Number: %s. Last digits: %s. Payment ID: %s. Document ID: %s. Customer ID: %s.', 'officeguy');
                         $Remark = sprintf($Remark, $ResponsePayment['AuthNumber'], $ResponsePaymentMethod['CreditCard_LastDigits'], $ResponsePayment['ID'], $Response['Data']['DocumentID'], $Response['Data']['CustomerID']);
                         $Order->add_order_note($Remark);
-                        $Order->payment_complete();
                         $Order->add_meta_data('OfficeGuyDocumentID', $ResponseVendor['DocumentID']);
                         $Order->add_meta_data('OfficeGuyCustomerID', $ResponseVendor['CustomerID']);
+                        $Order->payment_complete();
                         $Order->save_meta_data();
                         $Order->save();
                     }
@@ -353,20 +355,29 @@ class OfficeGuyPayment
                     $Remark = __('SUMIT payment completed. Auth Number: %s. Last digits: %s. Payment ID: %s. Document ID: %s. Customer ID: %s.', 'officeguy');
                     $Remark = sprintf($Remark, $ResponsePayment['AuthNumber'], $ResponsePaymentMethod['CreditCard_LastDigits'], $ResponsePayment['ID'], $Response['Data']['DocumentID'], $Response['Data']['CustomerID']);
                     $Order->add_order_note($Remark);
-                    $Order->payment_complete();
                     $Order->add_meta_data('OfficeGuyDocumentID', $Response['Data']['DocumentID']);
                     $Order->add_meta_data('OfficeGuyCustomerID', $Response['Data']['CustomerID']);
+                    $Order->add_meta_data('OfficeGuyAuthNumber', $ResponsePayment['AuthNumber']);
+                    $Order->add_meta_data('OfficeGuyTotalPaymentAmount', $ResponsePayment['Amount']);
+                    $Order->add_meta_data('OfficeGuyFirstPaymentAmount', $ResponsePayment['FirstPaymentAmount']);
+                    $Order->add_meta_data('OfficeGuyNonFirstPaymentAmount', $ResponsePayment['NonFirstPaymentAmount']);
+                    $Order->add_meta_data('OfficeGuyLastDigits', $ResponsePaymentMethod['CreditCard_LastDigits']);
+                    $Order->add_meta_data('OfficeGuyExpirationMonth', $ResponsePaymentMethod['CreditCard_ExpirationMonth']);
+                    $Order->add_meta_data('OfficeGuyExpirationYear', $ResponsePaymentMethod['CreditCard_ExpirationYear']);
+                    $Order->payment_complete();
                     $Order->save_meta_data();
                     $Order->save();
                 }
 
-                if (!$HasVendorInCart)
+                if (!$HasVendorInCart && empty($Token))
                 {
                     $TokenID = OfficeGuyRequestHelpers::Post('wc-' . $Gateway->id . '-payment-token');
                     if ($TokenID && $TokenID !== 'new')
                     {
                         $TokenID = wc_clean($TokenID);
                         $Token = WC_Payment_Tokens::get($TokenID);
+                        if (!empty($Token) && $Token->get_user_id() != get_current_user_id())
+                            $Token = null;
                     }
                     else
                     {
@@ -471,14 +482,14 @@ class OfficeGuyPayment
             return;
         }
 
-        $Request = OfficeGuyPayment::GetOrderRequest($OfficeGuyGateway, $Order, $ItemMethods, 1, false);
+        list($Request, $Token) = OfficeGuyPayment::GetOrderRequest($OfficeGuyGateway, $Order, $ItemMethods, 1, false);
         $Request['RedirectURL'] = $Gateway->get_return_url($Order);
         $Request['CancelRedirectURL'] = WC()->cart->get_checkout_url();
         $Request['AutomaticallyRedirectToProviderPaymentPage'] = 'UpayBit';
         $Request['IPNURL'] = $woocommerce->api_request_url('officeguybit_woocommerce_gateway') . '?orderid=' . $Order->get_id() . '&orderkey=' . $Order->get_order_key();
         do_action('og_payment_request_handle', $Order, $Request);
 
-        $Response = OfficeGuyAPI::Post($Request, '/billing/payments/beginredirect/', $OfficeGuyGateway->settings['environment']);
+        $Response = OfficeGuyAPI::Post($Request, '/billing/payments/beginredirect/', $OfficeGuyGateway->settings['environment'], true);
         if ($Response['Status'] == 0 && isset($Response['Data']['RedirectURL']))
         {
             return array(
@@ -544,7 +555,7 @@ class OfficeGuyPayment
         $Token = WC_Payment_Tokens::get($Tokens[count($Tokens) - 1]);
         $Request["PaymentMethod"] = OfficeGuyPayment::GetOrderPaymentMethodFromToken($Token);
 
-        $Response = OfficeGuyAPI::Post($Request, '/billing/payments/charge/', $Gateway->settings['environment']);
+        $Response = OfficeGuyAPI::Post($Request, '/billing/payments/charge/', $Gateway->settings['environment'], false);
 
         // Check response
         if ($Response['Status'] == 0 && $Response['Data']['Payment']['ValidPayment'] == true)
@@ -1023,7 +1034,7 @@ class OfficeGuyPayment
             )
         ));
 
-        $Response = OfficeGuyAPI::Post($Request, '/accounting/documents/create/', $Gateway->settings['environment']);
+        $Response = OfficeGuyAPI::Post($Request, '/accounting/documents/create/', $Gateway->settings['environment'], false);
 
         // Check response
         if ($Response['Status'] == 0)
@@ -1096,7 +1107,7 @@ class OfficeGuyPayment
         $Request = array();
         $Request['Credentials'] = OfficeGuyPayment::GetCredentials($Gateway);
         $Request['PaymentID'] = $OGPaymentID;
-        $Response = OfficeGuyAPI::Post($Request, '/billing/payments/get/', $Gateway->settings['environment']);
+        $Response = OfficeGuyAPI::Post($Request, '/billing/payments/get/', $Gateway->settings['environment'], false);
         if ($Response == null)
             return;
 

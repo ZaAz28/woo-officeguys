@@ -9,9 +9,9 @@ class OfficeGuyAPI
             return 'https://api.sumit.co.il' . $Path;
     }
 
-    public static function Post($Request, $Path, $Environment)
+    public static function Post($Request, $Path, $Environment, $SendClientIP)
     {
-        $Response = OfficeGuyAPI::PostRaw($Request, $Path, $Environment);
+        $Response = OfficeGuyAPI::PostRaw($Request, $Path, $Environment, $SendClientIP);
 
         // Quit if it didn't work
         if (is_wp_error($Response))
@@ -28,7 +28,7 @@ class OfficeGuyAPI
         return $Body;
     }
 
-    public static function PostRaw($Request, $Path, $Environment)
+    public static function PostRaw($Request, $Path, $Environment, $SendClientIP)
     {
         if (empty($Environment))
             $Environment = 'www';
@@ -56,7 +56,8 @@ class OfficeGuyAPI
             'headers' => array(
                 'Content-Type' => 'application/json',
                 'Content-Language' => get_locale(),
-                'X-OG-Client' => 'WooCommerce'
+                'X-OG-Client' => 'WooCommerce',
+                'X-OG-ClientIP' => $SendClientIP ? $_SERVER['REMOTE_ADDR'] : null
             ),
             'cookies' => array(),
             'ssl_verify' => false
@@ -75,7 +76,7 @@ class OfficeGuyAPI
 
         $Request = array();
         $Request['Credentials'] = $Credentials;
-        $Response = OfficeGuyAPI::Post($Request, '/website/companies/getdetails/', $Gateway->settings['environment']);
+        $Response = OfficeGuyAPI::Post($Request, '/website/companies/getdetails/', $Gateway->settings['environment'], false);
         if ($Response == null)
             return 'No response';
 
@@ -101,7 +102,7 @@ class OfficeGuyAPI
         $Request["CVV"] = '123';
         $Request["CitizenID"] = '123456789';
 
-        $Response = OfficeGuyAPI::Post($Request, '/creditguy/vault/tokenizesingleusejson/', $Gateway->settings['environment']);
+        $Response = OfficeGuyAPI::Post($Request, '/creditguy/vault/tokenizesingleusejson/', $Gateway->settings['environment'], false);
         if ($Response == null)
             return 'No response';
 
